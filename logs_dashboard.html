@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Logs - GitHub AI Code Reviewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-muted: #8b949e;
+      --text-bright: #f0f6fc;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --amber: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #1f6feb, #8957e5);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .brand-title h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-bright);
+    }
+
+    .brand-title p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .status-badges {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+    }
+
+    .badge.active {
+      color: var(--green);
+      border-color: rgba(63, 185, 80, 0.4);
+      background: rgba(63, 185, 80, 0.1);
+    }
+
+    .badge.warning {
+      color: var(--amber);
+      border-color: rgba(210, 153, 34, 0.4);
+      background: rgba(210, 153, 34, 0.1);
+    }
+
+    .pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+
+    main {
+      flex: 1;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-val {
+      font-size: 22px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .stat-val.total { color: var(--text-bright); }
+    .stat-val.info { color: var(--accent); }
+    .stat-val.warn { color: var(--amber); }
+    .stat-val.err { color: var(--red); }
+
+    .toolbar {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 12px;
+      flex: 1;
+      min-width: 240px;
+      max-width: 400px;
+    }
+
+    .search-box input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-bright);
+      font-size: 13px;
+      width: 100%;
+    }
+
+    .filter-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      border-color: var(--text-muted);
+      color: var(--text-bright);
+    }
+
+    .btn.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .toggle-wrap input {
+      cursor: pointer;
+    }
+
+    .console-container {
+      background: #090d13;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      flex: 1;
+      min-height: 480px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .console-header {
+      background: #11161d;
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .console-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .log-row {
+      display: flex;
+      gap: 12px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      transition: background 0.15s;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .log-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .log-time {
+      color: #6e7681;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .log-badge {
+      font-weight: 700;
+      flex-shrink: 0;
+      width: 70px;
+      text-align: center;
+      border-radius: 3px;
+      padding: 0 4px;
+      font-size: 11px;
+      line-height: 20px;
+      height: 20px;
+    }
+
+    .log-badge.INFO {
+      color: #58a6ff;
+      background: rgba(88, 166, 255, 0.12);
+    }
+
+    .log-badge.WARNING {
+      color: #d29922;
+      background: rgba(210, 153, 34, 0.15);
+    }
+
+    .log-badge.ERROR {
+      color: #f85149;
+      background: rgba(248, 81, 73, 0.2);
+    }
+
+    .log-comp {
+      color: var(--purple);
+      flex-shrink: 0;
+    }
+
+    .log-msg {
+      color: var(--text-bright);
+      flex: 1;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🤖</div>
+      <div class="brand-title">
+        <h1>AI Code Reviewer — Webhook Live Dashboard</h1>
+        <p>Real-time monitoring log & event pipeline</p>
+      </div>
+    </div>
+    <div class="status-badges" id="serverBadges">
+      <div class="badge active"><span class="pulse"></span> Server Online</div>
+      <div class="badge" id="badgeGithub">GitHub Token: ...</div>
+      <div class="badge" id="badgeAI">AI Model: ...</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-label">Total Logs</span>
+        <span class="stat-val total" id="statTotal">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Info Logs</span>
+        <span class="stat-val info" id="statInfo">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Warnings</span>
+        <span class="stat-val warn" id="statWarn">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Errors</span>
+        <span class="stat-val err" id="statErr">0</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="searchInput" placeholder="Cari isi log (misal: PR #1, HTTP, GitHub)..." oninput="applyFilters()">
+      </div>
+
+      <div class="filter-buttons">
+        <button class="btn active" data-level="ALL" onclick="setLevelFilter('ALL')">ALL</button>
+        <button class="btn" data-level="INFO" onclick="setLevelFilter('INFO')">INFO</button>
+        <button class="btn" data-level="WARNING" onclick="setLevelFilter('WARNING')">WARNING</button>
+        <button class="btn" data-level="ERROR" onclick="setLevelFilter('ERROR')">ERROR</button>
+      </div>
+
+      <div class="actions">
+        <label class="toggle-wrap">
+          <input type="checkbox" id="autoScrollCheck" checked>
+          <span>Auto-scroll</span>
+        </label>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="autoRefreshCheck" checked onchange="toggleAutoRefresh()">
+          <span>Live Poll (2s)</span>
+        </label>
+        <button class="btn" onclick="fetchLogs()">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <div class="console-container">
+      <div class="console-header">
+        <span>LOG STREAM : logs/server.log</span>
+        <span id="lastUpdated">Terakhir diupdate: -</span>
+      </div>
+      <div class="console-body" id="consoleBody">
+        <div class="empty-state">
+          <p>Memuat log dari server...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let rawLogs = [];
+    let currentLevel = 'ALL';
+    let pollInterval = null;
+
+    async function checkServerHealth() {
+      try {
+        const res = await fetch('/');
+        if (res.ok) {
+          const data = await res.json();
+          const ghBadge = document.getElementById('badgeGithub');
+          const aiBadge = document.getElementById('badgeAI');
+
+          if (data.configured.github_token) {
+            ghBadge.textContent = 'GitHub Token: Ready ✓';
+            ghBadge.className = 'badge active';
+          } else {
+            ghBadge.textContent = 'GitHub Token: Missing ⚠';
+            ghBadge.className = 'badge warning';
+          }
+
+          if (data.configured.active_provider !== "none") {
+            const providerName = data.configured.active_provider === "openrouter" ? "OpenRouter" : "Gemini";
+            const shortModel = data.configured.model.split('/').pop();
+            aiBadge.textContent = `AI: ${providerName} (${shortModel}) ✓`;
+            aiBadge.className = 'badge active';
+          } else {
+            aiBadge.textContent = 'AI Key: Missing ⚠';
+            aiBadge.className = 'badge warning';
+          }
+        }
+      } catch (e) {
+        console.error('Gagal mengecek health status:', e);
+      }
+    }
+
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/logs?lines=200');
+        if (res.ok) {
+          const data = await res.json();
+          rawLogs = data.recent_logs || [];
+          renderLogs();
+          document.getElementById('lastUpdated').textContent = 'Terakhir diupdate: ' + new Date().toLocaleTimeString();
+        }
+      } catch (err) {
+        console.error('Error fetching logs:', err);
+      }
+    }
+
+    function parseLogLine(line) {
+      // Format: 2026-10-30 13:29:27 | INFO     | [ai_reviewer] Pesan...
+      const parts = line.split(' | ');
+      if (parts.length >= 3) {
+        const time = parts[0];
+        const level = parts[1].trim();
+        const rest = parts.slice(2).join(' | ');
+        const compMatch = rest.match(/^(\[[^\]]+\])\s*(.*)$/);
+        const comp = compMatch ? compMatch[1] : '';
+        const msg = compMatch ? compMatch[2] : rest;
+        return { time, level, comp, msg, raw: line };
+      }
+      return { time: '', level: 'INFO', comp: '', msg: line, raw: line };
+    }
+
+    function renderLogs() {
+      const consoleBody = document.getElementById('consoleBody');
+      const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+      
+      let infoCount = 0;
+      let warnCount = 0;
+      let errCount = 0;
+
+      const parsedList = rawLogs.map(line => {
+        const item = parseLogLine(line);
+        if (item.level.includes('WARN')) warnCount++;
+        else if (item.level.includes('ERR')) errCount++;
+        else infoCount++;
+        return item;
+      });
+
+      document.getElementById('statTotal').textContent = rawLogs.length;
+      document.getElementById('statInfo').textContent = infoCount;
+      document.getElementById('statWarn').textContent = warnCount;
+      document.getElementById('statErr').textContent = errCount;
+
+      const filtered = parsedList.filter(item => {
+        const matchLevel = (currentLevel === 'ALL') || (item.level.toUpperCase().includes(currentLevel));
+        const matchSearch = !searchQuery || item.raw.toLowerCase().includes(searchQuery);
+        return matchLevel && matchSearch;
+      });
+
+      if (filtered.length === 0) {
+        consoleBody.innerHTML = '<div class="empty-state"><p>Tidak ada log yang cocok dengan filter.</p></div>';
+        return;
+      }
+
+      consoleBody.innerHTML = filtered.map(item => `
+        <div class="log-row">
+          <span class="log-time">${item.time}</span>
+          <span class="log-badge ${item.level}">${item.level}</span>
+          <span class="log-comp">${item.comp}</span>
+          <span class="log-msg">${escapeHtml(item.msg)}</span>
+        </div>
+      `).join('');
+
+      if (document.getElementById('autoScrollCheck').checked) {
+        consoleBody.scrollTop = consoleBody.scrollHeight;
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function setLevelFilter(lvl) {
+      currentLevel = lvl;
+      document.querySelectorAll('.filter-buttons .btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.level === lvl);
+      });
+      renderLogs();
+    }
+
+    function applyFilters() {
+      renderLogs();
+    }
+
+    function toggleAutoRefresh() {
+      const isChecked = document.getElementById('autoRefreshCheck').checked;
+      if (isChecked) {
+        if (!pollInterval) pollInterval = setInterval(fetchLogs, 2000);
+      } else {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+      }
+    }
+
+    // Inisialisasi awal
+    checkServerHealth();
+    fetchLogs();
+    pollInterval = setInterval(fetchLogs, 2000);
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,22 @@
+# Kredensial rahasia & environment variables (JANGAN PERNAH DI-PUSH)
+.env
+.env.local
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Log files
+logs/
+*.log
+
+# Editor & OS files
+.DS_Store
+.idea/
+.vscode/
