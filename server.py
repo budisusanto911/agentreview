@@ -2,6 +2,8 @@ import os
 import hmac
 import hashlib
 import time
+import json
+import urllib.parse
 from typing import Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Header, HTTPException, BackgroundTasks
@@ -239,7 +241,32 @@ async def handle_github_webhook(
     body_bytes = await request.body()
     verify_github_signature(body_bytes, x_hub_signature_256)
 
-    payload = await request.json()
+    # Dukung baik 'application/json' maupun 'application/x-www-form-urlencoded'
+    content_type = request.headers.get("content-type", "")
+    try:
+        if "application/json" in content_type:
+            payload = json.loads(body_bytes.decode("utf-8"))
+        elif "application/x-www-form-urlencoded" in content_type:
+            parsed = urllib.parse.parse_qs(body_bytes.decode("utf-8"))
+            payload_str = parsed.get("payload", ["{}"])[0]
+            payload = json.loads(payload_str)
+        else:
+            # Fallback jika header tidak standar
+            payload = json.loads(body_bytes.decode("utf-8"))
+    except Exception as parse_err:
+        logger.error(f"Gagal mem-parsing payload webhook: {parse_err}")
+        return {"status": "error", "message": f"Invalid payload format: {parse_err}"}
+
+    # Skenario 0: Event 'ping' dari GitHub saat webhook baru pertama kali ditambahkan
+    if x_github_event == "ping":
+        zen = payload.get("zen", "Non-blocking is better than blocking.")
+        hook_id = payload.get("hook_id", "unknown")
+        logger.info(f"Ping dari GitHub diterima (Hook ID: {hook_id}) - Zen: '{zen}'. Webhook siap!")
+        return {
+            "status": "pong",
+            "message": "GitHub Webhook Connected Successfully!",
+            "hook_id": hook_id
+        }
 
     # Cegah loop jika event dipicu oleh bot itu sendiri
     sender_type = payload.get("sender", {}).get("type", "")
@@ -278,6 +305,11 @@ async def handle_github_webhook(
                 "status": "queued",
                 "message": f"Manual trigger /review diterima untuk PR #{pr_number}"
             }
+
+    # Skenario 3: Event push biasa
+    elif x_github_event == "push":
+        logger.info("Menerima event 'push'. Catatan: AI code review aktif saat ada Pull Request (PR).")
+        return {"status": "ok", "message": "Push event received. AI reviewer listens on pull_request."}
 
     return {"status": "ignored", "event": x_github_event}
 
